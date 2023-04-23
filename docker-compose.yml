@@ -1,0 +1,116 @@
+version: "3"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: "./build/Dockerfile"
+    container_name: app
+    depends_on:
+      - mysql-master
+    networks:
+      - replications
+    ports:
+      - "90:90"
+    volumes:
+      - ./logs:/logs
+
+  mysql-master:
+    image: mysql:8.0.31
+    container_name: mysql-master
+    ports:
+      - "3309:3309"
+    volumes:
+      - ./build/mysql/master/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./master/data:/var/lib/mysql
+    networks:
+      - replications
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: admin
+      MYSQL_DATABASE: test
+      MYSQL_ROOT_PASSWORD: 111
+
+  mysql-slave-first:
+    image: mysql:8.0.31
+    container_name: mysql-slave-first
+    depends_on:
+      - mysql-master
+    ports:
+      - "4309:3309"
+    volumes:
+      - ./build/mysql/slave-1/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./slave-1/data:/var/lib/mysql
+    networks:
+      - replications
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+      MYSQL_USER: mydb_slave_user
+      MYSQL_PASSWORD: mydb_slave_pwd
+      MYSQL_DATABASE: test
+      MYSQL_ROOT_PASSWORD: 111
+
+  mysql-slave-second:
+    image: mysql:8.0.31
+    container_name: mysql-slave-second
+    depends_on:
+      - mysql-master
+    ports:
+      - "5309:3309"
+    volumes:
+      - ./build/mysql/slave-2/mysql.conf.cnf:/etc/mysql/conf.d/mysql.conf.cnf
+      - ./slave-2/data:/var/lib/mysql
+    networks:
+      - replications
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "true"
+      MYSQL_USER: mydb_slave_user_second
+      MYSQL_PASSWORD: mydb_slave_pwd_second
+      MYSQL_DATABASE: test
+      MYSQL_ROOT_PASSWORD: 111
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma
+    links:
+      - mysql-master
+    networks:
+      - replications
+    environment:
+      PMA_HOST: mysql-master
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    ports:
+      - "8081:80"
+
+  phpmyadmin-slave-first:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma-slave-first
+    links:
+      - mysql-slave-first
+    networks:
+      - replications
+    environment:
+      PMA_HOST: mysql-slave-first
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 2
+    ports:
+      - "8082:80"
+
+  phpmyadmin-slave-second:
+    image: phpmyadmin/phpmyadmin
+    container_name: pma-slave-second
+    links:
+      - mysql-slave-second
+    networks:
+      - replications
+    environment:
+      PMA_HOST: mysql-slave-second
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 3
+    ports:
+      - "8083:80"
+
+networks:
+  replications:

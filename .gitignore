@@ -1,0 +1,5 @@
+# Env file
+*.env
+master
+slave-1
+slave-2
